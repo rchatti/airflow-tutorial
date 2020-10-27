@@ -2,7 +2,8 @@
 # Step 1 Import Libraries 
 from datetime import datetime,timedelta
 
-from airflow import DAG 
+from airflow import DAG
+from airflow.models import Variable
 from airflow.operators.bash_operator import BashOperator 
 from airflow.operators.python_operator import PythonOperator
 
@@ -45,7 +46,7 @@ t2 = PythonOperator(
 t3 = BigQueryCheckOperator(
     task_id = 'Check_Chicago_Crime_Table',
     sql = '''SELECT count(*) FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where trip_start_timestamp = "{{yesterday_ds}}"''',
-    bigquery_conn_id='google_cloud_default',
+    bigquery_conn_id='my_gcp_conn',
     use_legacy_sql=False,
     dag = dag
 )
