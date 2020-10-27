@@ -8,6 +8,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 
 from airflow.contrib.operators.bigquery_check_operator import BigQueryCheckOperator
+from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 
 # Step 2: Define Default Args 
 default_args = {
@@ -43,13 +44,29 @@ t2 = PythonOperator(
     dag = dag
 )
 
+# Check to see if the Source Table exists
 t3 = BigQueryCheckOperator(
     task_id = 'Check_Chicago_Crime_Table',
-    sql = '''SELECT count(*) FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where trip_start_timestamp = "{{yesterday_ds}}"''',
+    sql = '''select count(*) FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` 
+            where date(trip_start_timestamp) = "{{yesterday_ds}}"''',
     bigquery_conn_id='my_gcp_conn',
     use_legacy_sql=False,
     dag = dag
 )
-# Step 5: Define Dependencies
 
-t1 >> t2 >> t3
+# Load data to Project Dataset
+t4 = BigQueryOperator(
+    task_id = 'BQLoadDestinationTable',
+    sql='''select trip_start_timestamp, trip_end_timestamp, trip_seconds, trip_miles,
+        fare, tips, tolls, extras, trip_total FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` 
+        where date(trip_start_timestamp)= "{{ yesterday_ds }}"''',
+    bigquery_conn_id='my_gcp_conn',
+    write_disposition='WRITE_TRUNCATE',
+    create_disposition='CREATE_IF_NEEDED',
+    destination_dataset_table='airflow-learning-10262020.chicago_taxi_airflow_in.daily_table_{{ yesterday_ds_nodash }}',
+    use_legacy_sql=False,
+    dag = dag
+)
+
+# Step 5: Define Dependencies
+t1 >> t2 >> t3 >> t4
